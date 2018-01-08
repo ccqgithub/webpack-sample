@@ -1,0 +1,15 @@
+*.log
+*.pid
+*.seed
+
+.DS_Store
+
+.idea
+.tags**
+.cache-loader
+node_modules
+
+/public
+/dist
+/app/script/static/locale/temp
+npm-debug.log*
