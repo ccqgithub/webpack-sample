@@ -74,6 +74,7 @@ exports.getStyleLoader = function(loader, config) {
   }
 
   let rst = loaders;
+  let happyRst = loaders;
   let happyPackPlugins = [];
 
   // HappyPack
@@ -83,7 +84,7 @@ exports.getStyleLoader = function(loader, config) {
       threads: 2,
       loaders: loaders
     });
-    rst = 'happypack/loader?id=happy-' + loader;
+    happyRst = 'happypack/loader?id=happy-' + loader;
   }
  
   // extract
@@ -92,9 +93,15 @@ exports.getStyleLoader = function(loader, config) {
       use: rst,
       fallback: styleLooader
     });
+
+    happyRst = config.extractPlugin.extract({
+      use: happyRst,
+      fallback: styleLooader
+    });
   }
 
   return {
+    happyLoaders: happyRst,
     loaders: rst,
     happyPackPlugins: happyPackPlugins
   };
@@ -108,6 +115,13 @@ exports.getStyleLoaders = function(config) {
   let postcssLoader = exports.getStyleLoader('postcss', config);
 
   return {
+    happyLoaders: {
+      css: cssLoader.happyLoaders,
+      sass: sassLoader.happyLoaders,
+      less: lessLoader.happyLoaders,
+      stylus: stylusLoader.happyLoaders,
+      postcss: postcssLoader.happyLoaders
+    },
     loaders: {
       css: cssLoader.loaders,
       sass: sassLoader.loaders,

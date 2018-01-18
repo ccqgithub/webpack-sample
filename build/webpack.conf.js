@@ -30,6 +30,9 @@ let styleLoaders = getStyleLoaders({
     config: {
       path: path.resolve(__dirname, './postcss.config.js')
     }
+  },
+  lessOptions: {
+    strictMath: 'off'
   }
 });
 
@@ -68,21 +71,15 @@ let entryConfigs = findEntry({
   contextPath: contextPath,
   // entryDir
   entryDirs: [
-    path.resolve(contextPath, 'app/script/entry/')
+    path.resolve(contextPath, 'src/entry/')
   ],
   // group the entry files
   group(p) {
-    if (/app\/script\/entry\/index\.jsx/.test(p)) {
-      return  'student';
-    }
-    if (/app\/script\/entry\/teacher-index\.jsx/.test(p)) {
-      return  'teacher';
-    }
-    return 'other';
+    return 'vue';
   },
   // template for entry js
   template(p) {
-    return p.replace(/.*app\/script\/entry\/(.*)\.(js|jsx)$/, 'app/template/$1.html');
+    return p.replace(/.*src\/entry\/(.*)\.(js|jsx)$/, 'src/html/$1.html');
   }
 });
 
@@ -100,91 +97,8 @@ Object.keys(entries).forEach((key) => {
 
 // commonPlugins
 let cssFileRe = /^.*\.(css|sass|scss|less|styl)$/;
-let reCommon = /app\/script\/common\.js/;
-let reCommonStudent = /app\/script\/common-student\.js/;
-let reCommonTeacher = /app\/script\/common-teacher\.js/;
-let reCommonOther = /app\/script\/common-other\.js/;
 let reNpm = /node_modules/;
 let commonPlugins = [
-  // common student
-  {
-    name: 'com-student',
-    minSize: 0,
-    minChunks: function (module, count) {
-      if (!module.resource || cssFileRe.test(module.resource)) {
-        return false;
-      }
-
-      if (
-        reCommonStudent.test(module.resource)
-        || reCommon.test(module.resource)
-        || reNpm.test(module.resource)
-      ) {
-        return true;
-      }
-
-      return false;
-    },
-    chunks: entryGroups.student || [],
-  },
-  {
-    name: 'com-teacher',
-    minSize: 0,
-    minChunks: function (module, count) {
-      if (!module.resource || cssFileRe.test(module.resource)) {
-        return false;
-      }
-
-      if (
-        reCommonTeacher.test(module.resource)
-        || reCommon.test(module.resource)
-        || reNpm.test(module.resource)
-      ) {
-        return true;
-      }
-
-      return false;
-    },
-    chunks: entryGroups.teacher || [],
-  },
-  {
-    name: 'com-other',
-    minSize: 0,
-    minChunks: function (module, count) {
-      if (!module.resource || cssFileRe.test(module.resource)) {
-        return false;
-      }
-
-      if (
-        reCommonOther.test(module.resource)
-        || reCommon.test(module.resource)
-        || reNpm.test(module.resource)
-      ) {
-        return true;
-      }
-
-      return false;
-    },
-    chunks: entryGroups.other || [],
-  },
-  {
-    name: 'common-all',
-    minChunks: function (module, count) {
-      if (!module.resource || cssFileRe.test(module.resource)) {
-        return false;
-      }
-
-      if (
-        reCommon.test(module.resource)
-        || reNpm.test(module.resource)
-      ) {
-        return true;
-      }
-
-      return false;
-    },
-    chunks: ['com-student', 'com-teacher', 'com-other']
-  },
   {
     name: 'vendor',
     minChunks: function (module, count) {
@@ -200,7 +114,7 @@ let commonPlugins = [
 
       return false;
     },
-    chunks: ['common-all']
+    chunks: entryGroups.vue || [],
   },
   {
     name: 'vendor-core',
@@ -223,9 +137,7 @@ let commonPlugins = [
 });
 
 let commonChunks = {
-  student: ['com-student', 'common-all', 'vendor', 'vendor-core'],
-  teacher: ['com-teacher', 'common-all', 'vendor', 'vendor-core'],
-  other: ['com-other', 'common-all', 'vendor', 'vendor-core'],
+  vue: ['vendor', 'vendor-core'],
 };
 
 // htmlPlugins
@@ -242,7 +154,7 @@ let groups = Object.keys(entryGroups);
 groups.forEach(groupName => {
   entryGroups[groupName].forEach(item => {
     let template = './' + templates[item];
-    let filename = template.replace(/.*app\/template\/(.*)\.html$/, '$1.html');
+    let filename = template.replace(/.*src\/html\/(.*)\.html$/, '$1.html');
     let chunks = ['manifest']
       .concat(commonChunks[groupName])
       .concat(item);
@@ -318,37 +230,26 @@ exports.module = {
     },
     {
       test: /\.vue$/,
-      loader: 'vue-loader',
-      options: {
-        loaders: Object.assign({}, styleLoaders.loaders, {
-          js: 'happypack/loader?id=babel'
-        })
-      }
+      use: 'happypack/loader?id=vue'
     },
     {
       test: /\.less$/,
-      use: styleLoaders.loaders.less
+      use: styleLoaders.happyLoaders.less
     },
     {
       test: /\.css$/,
-      use: styleLoaders.loaders.css
+      use: styleLoaders.happyLoaders.css
     },
     {
       test: /\.scss$/,
-      use: styleLoaders.loaders.sass
+      use: styleLoaders.happyLoaders.sass
     },
     {
       test: /\.js$/,
-      include: [
-        path.resolve(contextPath, "app")
-      ],
       use: 'happypack/loader?id=babel'
     },
     {
       test: /\.jsx$/,
-      include: [
-        path.resolve(contextPath, "app")
-      ],
       use: 'happypack/loader?id=babel'
     },
     {
@@ -381,14 +282,24 @@ exports.plugins = [
     ]
   }),
 
+  new HappyPack({
+    id: 'vue',
+    threads: 4,
+    loaders: [
+      'cache-loader',
+      {
+        loader: 'vue-loader',
+        options: {
+          loaders: Object.assign({}, styleLoaders.loaders, {
+            js: babelLoaderOptions
+          })
+        } 
+      }
+    ]
+  }),
+
   // new webpack.optimize.ModuleConcatenationPlugin(),
   new webpack.DefinePlugin(defines),
-  new webpack.ProvidePlugin({
-    $: 'jquery',
-    jQuery: 'jquery',
-    React: 'react',
-    ReactDOM: 'react-dom',
-  }),
   extractCss,
   new CopyWebpackPlugin([
     {
